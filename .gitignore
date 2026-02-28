@@ -1,2 +1,65 @@
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment
 venv/
-.pyc
+ENV/
+.env
+.venv/
+
+# SQLite database
+db.sqlite3
+*.sqlite3
+
+# VS Code settings
+.vscode/
+
+# Django static & media files
+staticfiles/
+media/
+
+# Environment variables
+*.env
+.env.*
+
+# Logs
+*.log
+
+# macOS system files
+.DS_Store
+
+# Compiled assets
+*.min.js
+*.min.css
+
+# Coverage / test
+htmlcov/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+
+# Pip installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Migrations (optional – only ignore if you don’t want to track them)
+# */migrations/*
+# !*/migrations/__init__.py
+
+# Byte-compiled / optimized / DLL files
+*.so
+*.dylib
+*.dll
+
+# Temporary files
+*.tmp
+*.swp
+*.bak
+*.orig
