@@ -1,6 +1,6 @@
-from django.contrib.auth import login, logout, authenticate
+from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
-from django.db.models import Q, Count, Case, When, IntegerField
+from django.db.models import Q, Count
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 from .forms import RegisterForm, EmailAuthenticationForm
@@ -86,14 +86,14 @@ def user_list_view(request):
 def chat_view(request, user_id):
     other_user = get_object_or_404(User, id=user_id)
 
-    # 1️⃣ mark this conversation as read
+    # mark this conversation as read
     Message.objects.filter(
         sender=other_user,
         receiver=request.user,
         is_read=False
     ).update(is_read=True)
 
-    # 2️⃣ sidebar: other users with unread count
+    # other users with unread count
     users = (
         User.objects
         .exclude(id=request.user.id)
@@ -108,11 +108,10 @@ def chat_view(request, user_id):
         )
     )
 
-    # 3️⃣ IMPORTANT: load ALL messages (including deleted)
     messages = Message.objects.filter(
         Q(sender=request.user, receiver=other_user) |
         Q(sender=other_user, receiver=request.user)
-    ).order_by('timestamp')  # 👈 no is_deleted here
+    ).order_by('timestamp')  
 
     return render(request, 'chat.html', {
         'other_user': other_user,
@@ -123,7 +122,7 @@ def chat_view(request, user_id):
 
 @login_required
 def chat_home_view(request):
-    # LEFT SIDEBAR: all other users with unread count
+    # all other users with unread count
     users = (
         User.objects
         .exclude(id=request.user.id)
@@ -138,10 +137,10 @@ def chat_home_view(request):
         )
     )
 
-    # RIGHT SIDE: nothing selected yet
+    
     return render(request, 'chat.html', {
-        'other_user': None,          # 👈 important
-        'chat_messages': [],         # no messages
-        'users': users,              # sidebar list
+        'other_user': None,         
+        'chat_messages': [],         
+        'users': users,           
         'current_user': request.user,
     })

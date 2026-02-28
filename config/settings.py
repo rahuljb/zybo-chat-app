@@ -6,17 +6,17 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'replace-with-your-secret-key'
 DEBUG = True
 
-ALLOWED_HOSTS = []  # add 'localhost' or your domain in production
+ALLOWED_HOSTS = [] 
 
 INSTALLED_APPS = [
-    'daphne',              # channels ASGI server
+    'daphne',              
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'chat.apps.ChatConfig',               # our app
+    'chat.apps.ChatConfig',              
 ]
 
 MIDDLEWARE = [
@@ -34,7 +34,7 @@ ROOT_URLCONF = 'config.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates'],  # global templates dir
+        'DIRS': [BASE_DIR / 'templates'], 
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -50,7 +50,6 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 ASGI_APPLICATION = 'config.asgi.application'
 
-# Channels – in-memory channel layer (fine for demo/interview)
 CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels.layers.InMemoryChannelLayer',
@@ -64,7 +63,7 @@ DATABASES = {
     }
 }
 
-AUTH_USER_MODEL = 'chat.User'  # custom user model
+AUTH_USER_MODEL = 'chat.User'  
 
 AUTH_PASSWORD_VALIDATORS = [
     {

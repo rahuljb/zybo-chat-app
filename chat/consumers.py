@@ -1,4 +1,3 @@
-# chat/consumers.py
 import json
 from asgiref.sync import async_to_sync
 from channels.generic.websocket import WebsocketConsumer
@@ -55,7 +54,7 @@ class ChatConsumer(WebsocketConsumer):
         data = json.loads(text_data or "{}")
         msg_type = data.get('type')
 
-        # 🔵 mark messages as read
+        # mark messages as read
         if msg_type == 'read_messages':
             Message.objects.filter(
                 sender_id=self.other_user_id,
@@ -72,7 +71,7 @@ class ChatConsumer(WebsocketConsumer):
             )
             return
 
-        # 🟡 typing start
+        # typing start
         if msg_type == 'typing':
             async_to_sync(self.channel_layer.group_send)(
                 self.room_group_name,
@@ -84,7 +83,7 @@ class ChatConsumer(WebsocketConsumer):
             )
             return
 
-        # 🟡 typing stop
+        # typing stop
         if msg_type == 'stop_typing':
             async_to_sync(self.channel_layer.group_send)(
                 self.room_group_name,
@@ -96,7 +95,7 @@ class ChatConsumer(WebsocketConsumer):
             )
             return
 
-        # 🗑 delete messages
+        # delete messages
         if msg_type == 'delete_messages':
             ids = data.get('ids', [])
             if not isinstance(ids, list) or not ids:
@@ -127,7 +126,7 @@ class ChatConsumer(WebsocketConsumer):
             )
             return
 
-        # 📨 normal chat message
+        # normal chat message
         message = data.get('message', '').strip()
         if not message:
             return
@@ -164,8 +163,6 @@ class ChatConsumer(WebsocketConsumer):
                 'preview': msg.content[:30],
             }
         )
-
-    # === event handlers forwarded to browser ===
 
     def typing_indicator(self, event):
         self.send(text_data=json.dumps({
@@ -214,5 +211,4 @@ class NotificationConsumer(WebsocketConsumer):
         )
 
     def notify_message(self, event):
-        # forward to browser
         self.send(text_data=json.dumps(event))

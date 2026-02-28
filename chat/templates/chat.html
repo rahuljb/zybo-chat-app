@@ -3,7 +3,6 @@
 {% block content %}
 <div class="wa-wrapper">
 
-  <!-- LEFT: SIDEBAR / USER LIST -->
   <div class="wa-sidebar">
 
     <div class="wa-sidebar-header">
@@ -39,14 +38,11 @@
             </div>
             <div class="wa-chat-meta">
             <div class="wa-chat-time">
-                <!-- optional last time -->
             </div>
             <div>
-                <!-- online dot -->
-                <span id="user-dot-{{ u.id }}"
+\                <span id="user-dot-{{ u.id }}"
                     class="online-dot {% if u.is_online %}online{% else %}offline{% endif %}">
                 </span>
-                <!-- 🔴 unread badge -->
                 <span id="unread-badge-{{ u.id }}"
                     class="badge bg-danger ms-1 {% if not u.unread_count %}d-none{% endif %}">
                     {{ u.unread_count|default:'' }}
@@ -64,10 +60,8 @@
 
   </div>
 
-    <!-- RIGHT: ACTIVE CHAT AREA -->
     <div class="wa-main">
         {% if other_user %}
-        <!-- Chat header -->
         <div class="chat-header">
             <div class="chat-contact-info">
             <span class="chat-contact-name">
@@ -85,7 +79,6 @@
             </div>
             </div>
 
-            <!-- Actions on the right (shown when messages selected) -->
             <div class="chat-header-actions" id="chat-header-actions" style="display:none;">
             <button id="delete-selected"
                     type="button"
@@ -96,7 +89,6 @@
             </div>
         </div>
 
-    <!-- Messages + scroll button wrapper -->
       <div class="chat-window-wrapper">
         <div id="chat-window" class="chat-window">
           {% for msg in chat_messages %}
@@ -143,7 +135,6 @@
           {% endfor %}
         </div>
 
-        <!-- 🔽 Scroll to bottom button -->
         <button id="scroll-to-bottom"
                 type="button"
                 class="scroll-to-bottom-btn">
@@ -151,7 +142,6 @@
         </button>
       </div>
 
-      <!-- Input -->
       <form id="chat-form" class="chat-footer">
         <input type="text"
                id="message-input"
@@ -162,7 +152,6 @@
         </button>
       </form>
     {% else %}
-      <!-- Fallback if no chat selected -->
       <div class="d-flex flex-column justify-content-center align-items-center h-100 text-muted">
         <p>Select a chat on the left to start messaging</p>
       </div>
@@ -186,14 +175,12 @@
   let typingTimeout = null;
   let isAtBottom = true;
 
-  // keep track of selected messages (for delete)
   const selectedMessageIds = new Set();
 
-  // ---------- SCROLL HELPERS ----------
 
   function isNearBottom() {
     if (!chatWindow) return true;
-    const threshold = 80; // px from bottom
+    const threshold = 80; 
     const distanceFromBottom =
       chatWindow.scrollHeight - chatWindow.scrollTop - chatWindow.clientHeight;
     return distanceFromBottom < threshold;
@@ -208,7 +195,6 @@
     }
   }
 
-  // initial scroll on load
   scrollToBottom();
 
   // show/hide scroll button when user scrolls
@@ -222,8 +208,6 @@
       scrollToBottom();
     });
   }
-
-  // ---------- HEADER ACTIONS (DELETE ICON) ----------
 
   function updateHeaderActions() {
     if (!headerActions) return;
@@ -305,7 +289,6 @@
         return;
       }
 
-      // ----- normal chat messages -----
       const senderId = data.sender_id;
       const message = data.message;
       const timestamp = data.timestamp;
@@ -314,7 +297,6 @@
 
       if (!chatWindow) return;
 
-      // were we near bottom BEFORE append?
       const wasNearBottom = isNearBottom();
 
       const row = document.createElement('div');
@@ -334,7 +316,6 @@
       } else {
         row.classList.add('received');
         meta.textContent = timestamp;
-        // mark as read as soon as we see it
         chatSocket.send(JSON.stringify({ type: 'read_messages' }));
       }
 
@@ -358,7 +339,6 @@
       console.error('Chat socket closed unexpectedly');
     };
 
-    // ---------- typing indicator (client sends) ----------
 
     function sendTyping() {
       if (!messageInput) return;
@@ -380,7 +360,6 @@
       messageInput.addEventListener('input', sendTyping);
     }
 
-    // ---------- send message form ----------
 
     if (chatForm && messageInput) {
       chatForm.addEventListener('submit', function (e) {
@@ -395,7 +374,6 @@
       });
     }
 
-    // ---------- click to select / unselect (only own messages) ----------
 
     if (chatWindow) {
       chatWindow.addEventListener('click', function (e) {
@@ -421,8 +399,6 @@
         updateHeaderActions();
       });
     }
-
-    // ---------- delete button click ----------
 
     if (deleteBtn) {
       deleteBtn.addEventListener('click', function () {

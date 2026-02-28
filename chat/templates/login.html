@@ -6,7 +6,6 @@
     
     <div class="card-body p-4">
 
-      <!-- Logo / Title -->
       <div class="text-center mb-4">
         <h3 class="fw-bold mb-1">Welcome Back</h3>
         <p class="text-muted small">Login to continue to ZYBO CHAT</p>
@@ -15,26 +14,22 @@
       <form method="post">
         {% csrf_token %}
 
-        <!-- Email / Username -->
         <div class="mb-3">
           <label class="form-label">Email</label>
           {{ form.username }}
         </div>
 
-        <!-- Password -->
         <div class="mb-3">
           <label class="form-label">Password</label>
           {{ form.password }}
         </div>
 
-        <!-- Submit -->
         <div class="d-grid mb-3">
           <button type="submit" class="btn btn-primary fw-semibold">
             Login
           </button>
         </div>
 
-        <!-- Register link -->
         <div class="text-center">
           <small class="text-muted">
             Don’t have an account?
