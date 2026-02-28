@@ -5,6 +5,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 from .forms import RegisterForm, EmailAuthenticationForm
 from .models import User, Message
+from django.contrib import messages
 
 def register_view(request):
     if request.user.is_authenticated:
@@ -14,17 +15,17 @@ def register_view(request):
         form = RegisterForm(request.POST)
         if form.is_valid():
             user = form.save(commit=False)
-            user.is_online = True
+            user.is_online = False
             user.last_seen = timezone.now()
             user.save()
-            login(request, user)
-            next_url = request.GET.get('next') or request.POST.get('next')
-            if next_url:
-                return redirect(next_url)
-            return redirect('user_list')
+
+            messages.success(request, "Account created successfully. Please log in.")
+
+            return redirect('login')
 
     else:
         form = RegisterForm()
+
     return render(request, 'register.html', {'form': form})
 
 
