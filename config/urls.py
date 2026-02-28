@@ -1,0 +1,16 @@
+from django.contrib import admin
+from django.urls import path
+from chat import views as chat_views
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+
+    path('register/', chat_views.register_view, name='register'),
+    path('login/', chat_views.login_view, name='login'),
+    path('logout/', chat_views.logout_view, name='logout'),
+
+    # path('', chat_views.chat_home_view, name='chat_home'),
+    path('chat/<int:user_id>/', chat_views.chat_view, name='chat'),
+     # HOME = user list
+    path('', chat_views.user_list_view, name='user_list'),
+]

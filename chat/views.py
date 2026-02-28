@@ -1,0 +1,147 @@
+from django.contrib.auth import login, logout, authenticate
+from django.contrib.auth.decorators import login_required
+from django.db.models import Q, Count, Case, When, IntegerField
+from django.shortcuts import render, redirect, get_object_or_404
+from django.utils import timezone
+from .forms import RegisterForm, EmailAuthenticationForm
+from .models import User, Message
+
+def register_view(request):
+    if request.user.is_authenticated:
+        return redirect('user_list')
+
+    if request.method == 'POST':
+        form = RegisterForm(request.POST)
+        if form.is_valid():
+            user = form.save(commit=False)
+            user.is_online = True
+            user.last_seen = timezone.now()
+            user.save()
+            login(request, user)
+            next_url = request.GET.get('next') or request.POST.get('next')
+            if next_url:
+                return redirect(next_url)
+            return redirect('user_list')
+
+    else:
+        form = RegisterForm()
+    return render(request, 'register.html', {'form': form})
+
+
+def login_view(request):
+    if request.user.is_authenticated:
+        return redirect('user_list')
+
+    if request.method == 'POST':
+        form = EmailAuthenticationForm(request, data=request.POST)
+        if form.is_valid():
+            user = form.get_user()
+            user.is_online = True
+            user.last_seen = timezone.now()
+            user.save(update_fields=['is_online', 'last_seen'])
+            login(request, user)
+            next_url = request.GET.get('next') or request.POST.get('next')
+            if next_url:
+                return redirect(next_url)
+
+            return redirect('user_list')
+    else:
+        form = EmailAuthenticationForm(request)
+
+    return render(request, 'login.html', {'form': form})
+
+
+@login_required
+def logout_view(request):
+    user = request.user
+    user.is_online = False
+    user.last_seen = timezone.now()
+    user.save(update_fields=['is_online', 'last_seen'])
+    logout(request)
+    return redirect('login')
+
+
+
+@login_required
+def user_list_view(request):
+    users = (
+        User.objects
+        .exclude(id=request.user.id)
+        .annotate(
+            unread_count=Count(
+                'sent_messages',
+                filter=Q(sent_messages__receiver=request.user, sent_messages__is_read=False)
+            )
+        )
+    )
+    return render(request, 'user_list.html', {
+        'users': users,
+        'current_user': request.user,
+    })
+
+
+
+
+@login_required
+def chat_view(request, user_id):
+    other_user = get_object_or_404(User, id=user_id)
+
+    # 1️⃣ mark this conversation as read
+    Message.objects.filter(
+        sender=other_user,
+        receiver=request.user,
+        is_read=False
+    ).update(is_read=True)
+
+    # 2️⃣ sidebar: other users with unread count
+    users = (
+        User.objects
+        .exclude(id=request.user.id)
+        .annotate(
+            unread_count=Count(
+                'sent_messages',
+                filter=Q(
+                    sent_messages__receiver=request.user,
+                    sent_messages__is_read=False
+                )
+            )
+        )
+    )
+
+    # 3️⃣ IMPORTANT: load ALL messages (including deleted)
+    messages = Message.objects.filter(
+        Q(sender=request.user, receiver=other_user) |
+        Q(sender=other_user, receiver=request.user)
+    ).order_by('timestamp')  # 👈 no is_deleted here
+
+    return render(request, 'chat.html', {
+        'other_user': other_user,
+        'chat_messages': messages,
+        'users': users,
+        'current_user': request.user,
+    })
+
+@login_required
+def chat_home_view(request):
+    # LEFT SIDEBAR: all other users with unread count
+    users = (
+        User.objects
+        .exclude(id=request.user.id)
+        .annotate(
+            unread_count=Count(
+                'sent_messages',
+                filter=Q(
+                    sent_messages__receiver=request.user,
+                    sent_messages__is_read=False
+                )
+            )
+        )
+    )
+
+    # RIGHT SIDE: nothing selected yet
+    return render(request, 'chat.html', {
+        'other_user': None,          # 👈 important
+        'chat_messages': [],         # no messages
+        'users': users,              # sidebar list
+        'current_user': request.user,
+    })

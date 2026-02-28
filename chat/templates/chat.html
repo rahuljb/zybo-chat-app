@@ -1,0 +1,441 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+<div class="wa-wrapper">
+
+  <!-- LEFT: SIDEBAR / USER LIST -->
+  <div class="wa-sidebar">
+
+    <div class="wa-sidebar-header">
+    <div class="wa-me-info">
+        <div class="wa-logo-text">ZYBO CHAT</div>
+    </div>
+    </div>
+
+    <div class="wa-sidebar-search">
+      <input type="text" class="form-control form-control-sm" placeholder="Search or start a new chat" disabled>
+    </div>
+
+    <div class="wa-chat-list">
+    {% for u in users %}
+        <a href="{% url 'chat' u.id %}" class="text-decoration-none text-reset">
+        <div class="wa-chat-item">
+            <div class="wa-chat-main">
+            <div class="wa-avatar">
+                {{ u.username|default:u.email|first|upper }}
+            </div>
+            <div class="wa-chat-texts">
+                <div class="wa-chat-name">
+                {{ u.username|default:u.email }}
+                </div>
+                <div class="wa-chat-last">
+                {% if u.unread_count %}
+                    {{ u.unread_count }} unread messages
+                {% else %}
+                    &nbsp;
+                {% endif %}
+                </div>
+            </div>
+            </div>
+            <div class="wa-chat-meta">
+            <div class="wa-chat-time">
+                <!-- optional last time -->
+            </div>
+            <div>
+                <!-- online dot -->
+                <span id="user-dot-{{ u.id }}"
+                    class="online-dot {% if u.is_online %}online{% else %}offline{% endif %}">
+                </span>
+                <!-- 🔴 unread badge -->
+                <span id="unread-badge-{{ u.id }}"
+                    class="badge bg-danger ms-1 {% if not u.unread_count %}d-none{% endif %}">
+                    {{ u.unread_count|default:'' }}
+                </span>
+            </div>
+            </div>
+        </div>
+        </a>
+    {% empty %}
+        <div class="p-3 text-muted" style="font-size:.9rem;">
+        No other users yet.
+        </div>
+    {% endfor %}
+    </div>
+
+  </div>
+
+    <!-- RIGHT: ACTIVE CHAT AREA -->
+    <div class="wa-main">
+        {% if other_user %}
+        <!-- Chat header -->
+        <div class="chat-header">
+            <div class="chat-contact-info">
+            <span class="chat-contact-name">
+                {{ other_user.username|default:other_user.email }}
+            </span>
+            <span class="chat-contact-status" id="chat-status-text">
+                {% if other_user.is_online %}
+                Online
+                {% else %}
+                Last seen {{ other_user.last_seen|date:"M d, H:i" }}
+                {% endif %}
+            </span>
+            <div id="typing-indicator" class="text-muted" style="font-size:.8rem; display:none;">
+                {{ other_user.username|default:other_user.email }} is typing…
+            </div>
+            </div>
+
+            <!-- Actions on the right (shown when messages selected) -->
+            <div class="chat-header-actions" id="chat-header-actions" style="display:none;">
+            <button id="delete-selected"
+                    type="button"
+                    class="btn btn-link btn-sm text-danger"
+                    title="Delete selected message(s)">
+                🗑
+            </button>
+            </div>
+        </div>
+
+    <!-- Messages + scroll button wrapper -->
+      <div class="chat-window-wrapper">
+        <div id="chat-window" class="chat-window">
+          {% for msg in chat_messages %}
+            {% if msg.sender_id == user.id %}
+              <div class="message-row sent"
+                   data-message-id="{{ msg.id }}"
+                   data-sender-id="{{ msg.sender_id }}">
+                <div class="message-bubble {% if msg.is_deleted %}deleted{% endif %}">
+                  {% if msg.is_deleted %}
+                    <em class="text-muted" style="font-size:.85rem;">
+                      You deleted this message
+                    </em>
+                  {% else %}
+                    {{ msg.content|linebreaksbr }}
+                    <div class="message-meta">
+                      {{ msg.timestamp|date:"H:i" }}
+                      {% if msg.is_read %}
+                        ✓✓
+                      {% else %}
+                        ✓
+                      {% endif %}
+                    </div>
+                  {% endif %}
+                </div>
+              </div>
+            {% else %}
+              <div class="message-row received"
+                   data-message-id="{{ msg.id }}"
+                   data-sender-id="{{ msg.sender_id }}">
+                <div class="message-bubble {% if msg.is_deleted %}deleted{% endif %}">
+                  {% if msg.is_deleted %}
+                    <em class="text-muted" style="font-size:.85rem;">
+                      This message was deleted
+                    </em>
+                  {% else %}
+                    {{ msg.content|linebreaksbr }}
+                    <div class="message-meta">
+                      {{ msg.timestamp|date:"H:i" }}
+                    </div>
+                  {% endif %}
+                </div>
+              </div>
+            {% endif %}
+          {% endfor %}
+        </div>
+
+        <!-- 🔽 Scroll to bottom button -->
+        <button id="scroll-to-bottom"
+                type="button"
+                class="scroll-to-bottom-btn">
+            <img src="{% static 'img/arrow.png' %}" class="scroll-arrow" alt="">
+        </button>
+      </div>
+
+      <!-- Input -->
+      <form id="chat-form" class="chat-footer">
+        <input type="text"
+               id="message-input"
+               class="form-control bg-white"
+               placeholder="Type a message">
+        <button type="submit" class="btn btn-primary">
+          &#10148;
+        </button>
+      </form>
+    {% else %}
+      <!-- Fallback if no chat selected -->
+      <div class="d-flex flex-column justify-content-center align-items-center h-100 text-muted">
+        <p>Select a chat on the left to start messaging</p>
+      </div>
+    {% endif %}
+  </div>
+
+</div>
+
+<script>
+  const userId = "{{ user.id }}";
+  const otherUserId = "{{ other_user.id|default:'' }}";
+
+  const chatWindow = document.getElementById('chat-window');
+  const messageInput = document.getElementById('message-input');
+  const chatForm = document.getElementById('chat-form');
+  const typingIndicator = document.getElementById('typing-indicator');
+  const headerActions = document.getElementById('chat-header-actions');
+  const deleteBtn = document.getElementById('delete-selected');
+  const scrollBtn = document.getElementById('scroll-to-bottom');
+
+  let typingTimeout = null;
+  let isAtBottom = true;
+
+  // keep track of selected messages (for delete)
+  const selectedMessageIds = new Set();
+
+  // ---------- SCROLL HELPERS ----------
+
+  function isNearBottom() {
+    if (!chatWindow) return true;
+    const threshold = 80; // px from bottom
+    const distanceFromBottom =
+      chatWindow.scrollHeight - chatWindow.scrollTop - chatWindow.clientHeight;
+    return distanceFromBottom < threshold;
+  }
+
+  function scrollToBottom() {
+    if (!chatWindow) return;
+    chatWindow.scrollTop = chatWindow.scrollHeight;
+    isAtBottom = true;
+    if (scrollBtn) {
+      scrollBtn.style.display = 'none';
+    }
+  }
+
+  // initial scroll on load
+  scrollToBottom();
+
+  // show/hide scroll button when user scrolls
+  if (chatWindow && scrollBtn) {
+    chatWindow.addEventListener('scroll', function () {
+      isAtBottom = isNearBottom();
+      scrollBtn.style.display = isAtBottom ? 'none' : 'inline-flex';
+    });
+
+    scrollBtn.addEventListener('click', function () {
+      scrollToBottom();
+    });
+  }
+
+  // ---------- HEADER ACTIONS (DELETE ICON) ----------
+
+  function updateHeaderActions() {
+    if (!headerActions) return;
+    headerActions.style.display = selectedMessageIds.size > 0 ? 'flex' : 'none';
+  }
+
+  // ---------- WEBSOCKET SETUP ----------
+
+  if (!otherUserId) {
+    console.warn("No other user ID; skipping chat socket setup.");
+  } else {
+    const chatWsScheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
+
+    const chatSocket = new WebSocket(
+      chatWsScheme + '://' + window.location.host + '/ws/chat/' + otherUserId + '/'
+    );
+
+    chatSocket.onopen = function () {
+      // mark messages as read on open
+      chatSocket.send(JSON.stringify({ type: 'read_messages' }));
+    };
+
+    chatSocket.onmessage = function (e) {
+      const data = JSON.parse(e.data);
+
+      // ----- typing events -----
+      if (data.type === 'typing') {
+        const senderId = String(data.sender_id);
+        const isTyping = data.is_typing;
+
+        if (senderId !== String(userId) && typingIndicator) {
+          typingIndicator.style.display = isTyping ? 'block' : 'none';
+        }
+        return;
+      }
+
+      // ----- read receipts -----
+      if (data.type === 'read_receipt') {
+        document.querySelectorAll('.message-row.sent .message-meta').forEach(meta => {
+          if (meta.textContent.includes('✓') && !meta.textContent.includes('✓✓')) {
+            meta.textContent = meta.textContent.replace('✓', '✓✓');
+          }
+        });
+        return;
+      }
+
+      // ----- messages deleted -----
+      if (data.type === 'message_deleted') {
+        const deletedIds = data.message_ids || [];
+
+        deletedIds.forEach(id => {
+          const selector = '.message-row[data-message-id="' + id + '"]';
+          const row = chatWindow ? chatWindow.querySelector(selector) : null;
+          if (!row) return;
+
+          const bubble = row.querySelector('.message-bubble');
+          if (!bubble) return;
+
+          const senderId = String(row.dataset.senderId);
+
+          // show placeholder text instead of raw content
+          if (senderId === String(userId)) {
+            bubble.innerHTML = '<em class="text-muted" style="font-size:.85rem;">You deleted this message</em>';
+          } else {
+            bubble.innerHTML = '<em class="text-muted" style="font-size:.85rem;">This message was deleted</em>';
+          }
+
+          // unselect if it was selected
+          row.classList.remove('selected');
+          selectedMessageIds.delete(String(id));
+        });
+
+        updateHeaderActions();
+        // re-evaluate scroll button visibility
+        isAtBottom = isNearBottom();
+        if (scrollBtn) {
+          scrollBtn.style.display = isAtBottom ? 'none' : 'inline-flex';
+        }
+        return;
+      }
+
+      // ----- normal chat messages -----
+      const senderId = data.sender_id;
+      const message = data.message;
+      const timestamp = data.timestamp;
+      const isRead = data.is_read;
+      const messageId = data.message_id;
+
+      if (!chatWindow) return;
+
+      // were we near bottom BEFORE append?
+      const wasNearBottom = isNearBottom();
+
+      const row = document.createElement('div');
+      row.classList.add('message-row');
+      row.dataset.messageId = messageId;
+      row.dataset.senderId = senderId;
+
+      const bubble = document.createElement('div');
+      bubble.classList.add('message-bubble');
+
+      const meta = document.createElement('div');
+      meta.classList.add('message-meta');
+
+      if (String(senderId) === String(userId)) {
+        row.classList.add('sent');
+        meta.textContent = timestamp + ' ' + (isRead ? '✓✓' : '✓');
+      } else {
+        row.classList.add('received');
+        meta.textContent = timestamp;
+        // mark as read as soon as we see it
+        chatSocket.send(JSON.stringify({ type: 'read_messages' }));
+      }
+
+      bubble.textContent = message;
+      bubble.appendChild(meta);
+      row.appendChild(bubble);
+      chatWindow.appendChild(row);
+
+      // scroll behavior
+      if (wasNearBottom) {
+        scrollToBottom();
+      } else {
+        isAtBottom = false;
+        if (scrollBtn) {
+          scrollBtn.style.display = 'inline-flex';
+        }
+      }
+    };
+
+    chatSocket.onclose = function () {
+      console.error('Chat socket closed unexpectedly');
+    };
+
+    // ---------- typing indicator (client sends) ----------
+
+    function sendTyping() {
+      if (!messageInput) return;
+
+      if (!messageInput.value.trim()) {
+        chatSocket.send(JSON.stringify({ type: 'stop_typing' }));
+        return;
+      }
+
+      chatSocket.send(JSON.stringify({ type: 'typing' }));
+
+      if (typingTimeout) clearTimeout(typingTimeout);
+      typingTimeout = setTimeout(() => {
+        chatSocket.send(JSON.stringify({ type: 'stop_typing' }));
+      }, 1500);
+    }
+
+    if (messageInput) {
+      messageInput.addEventListener('input', sendTyping);
+    }
+
+    // ---------- send message form ----------
+
+    if (chatForm && messageInput) {
+      chatForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        const message = messageInput.value.trim();
+        if (!message) return;
+
+        chatSocket.send(JSON.stringify({ message: message }));
+        messageInput.value = '';
+        messageInput.focus();
+        chatSocket.send(JSON.stringify({ type: 'stop_typing' }));
+      });
+    }
+
+    // ---------- click to select / unselect (only own messages) ----------
+
+    if (chatWindow) {
+      chatWindow.addEventListener('click', function (e) {
+        const row = e.target.closest('.message-row');
+        if (!row) return;
+
+        const senderId = row.dataset.senderId;
+        if (String(senderId) !== String(userId)) {
+          // only select your own messages for delete
+          return;
+        }
+
+        const msgId = row.dataset.messageId;
+        if (!msgId) return;
+
+        if (selectedMessageIds.has(msgId)) {
+          selectedMessageIds.delete(msgId);
+          row.classList.remove('selected');
+        } else {
+          selectedMessageIds.add(msgId);
+          row.classList.add('selected');
+        }
+        updateHeaderActions();
+      });
+    }
+
+    // ---------- delete button click ----------
+
+    if (deleteBtn) {
+      deleteBtn.addEventListener('click', function () {
+        if (selectedMessageIds.size === 0) return;
+
+        if (!confirm('Delete selected message(s)?')) return;
+
+        chatSocket.send(JSON.stringify({
+          type: 'delete_messages',
+          ids: Array.from(selectedMessageIds),
+        }));
+      });
+    }
+  }
+</script>
+{% endblock %}
