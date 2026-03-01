@@ -478,11 +478,20 @@
 <script>
   const wsScheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
 
+  
   const presenceSocket = new WebSocket(
       wsScheme + '://' + window.location.host + '/ws/presence/'
   );
 
-  presenceSocket.onmessage = function(e) {
+  
+  presenceSocket.onopen = function () {
+      presenceSocket.send(JSON.stringify({
+          type: "online",
+          user_id: "{{ user.id }}"
+      }));
+  };
+
+  presenceSocket.onmessage = function (e) {
       const data = JSON.parse(e.data);
 
       if (data.type === "presence_update") {
@@ -496,14 +505,36 @@
                   dot.classList.remove("online");
               }
           }
+
+          
+          try {
+              
+              if (typeof otherUserId !== "undefined" &&
+                  otherUserId &&
+                  String(data.user_id) === String(otherUserId)) {
+
+                  const statusEl = document.getElementById("chat-status-text");
+                  if (statusEl) {
+                      if (data.is_online) {
+                          statusEl.textContent = "Online";
+                      } else {
+                          
+                          statusEl.textContent = "Last seen just now";
+                      }
+                  }
+              }
+          } catch (err) {
+              console.error("Error updating header presence:", err);
+          }
       }
   };
 
+ 
   const notificationsSocket = new WebSocket(
       wsScheme + '://' + window.location.host + '/ws/notifications/'
   );
 
-  notificationsSocket.onmessage = function(e) {
+  notificationsSocket.onmessage = function (e) {
       const data = JSON.parse(e.data);
 
       if (data.type === 'notify_message') {
@@ -512,7 +543,6 @@
           const badge = document.getElementById(badgeId);
 
           if (!badge) {
-             
               return;
           }
 
@@ -525,7 +555,7 @@
       }
   };
 
-  notificationsSocket.onclose = function(e) {
+  notificationsSocket.onclose = function (e) {
       console.error('Notifications socket closed unexpectedly');
   };
 </script>
