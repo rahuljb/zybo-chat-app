@@ -1,4 +1,4 @@
-from django.contrib.auth import login, logout
+from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q, Count
 from django.shortcuts import render, redirect, get_object_or_404
@@ -33,23 +33,34 @@ def login_view(request):
     if request.user.is_authenticated:
         return redirect('user_list')
 
+    message = None  # feedback message
+
     if request.method == 'POST':
-        form = EmailAuthenticationForm(request, data=request.POST)
-        if form.is_valid():
-            user = form.get_user()
-            user.is_online = True
-            user.last_seen = timezone.now()
-            user.save(update_fields=['is_online', 'last_seen'])
-            login(request, user)
-            next_url = request.GET.get('next') or request.POST.get('next')
-            if next_url:
-                return redirect(next_url)
+        email = request.POST.get('username')  # your form uses "username" field for email
+        password = request.POST.get('password')
 
-            return redirect('user_list')
-    else:
-        form = EmailAuthenticationForm(request)
+        # 1️⃣ Check if user exists
+        try:
+            user_obj = User.objects.get(email=email)
+        except User.DoesNotExist:
+            message = "User does not exist. Please register."
+            return render(request, 'login.html', {'form': EmailAuthenticationForm(), 'error': message})
 
-    return render(request, 'login.html', {'form': form})
+        # 2️⃣ Validate password
+        user = authenticate(request, email=email, password=password)
+        if user is None:
+            message = "Incorrect password. Try again."
+            return render(request, 'login.html', {'form': EmailAuthenticationForm(), 'error': message})
+
+        # 3️⃣ Success: login user
+        user.is_online = True
+        user.last_seen = timezone.now()
+        user.save(update_fields=['is_online', 'last_seen'])
+
+        login(request, user)
+        return redirect('user_list')
+
+    return render(request, 'login.html', {'form': EmailAuthenticationForm()})
 
 
 @login_required
