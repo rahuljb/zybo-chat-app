@@ -89,3 +89,14 @@ daphne -p 8000 project_root.asgi:application
 
 github URL:
 https://github.com/rahuljb/zybo-chat-app#
+
+host in render.com:
+https://zybo-chat-app.onrender.com/login/?next=/
+
+USER 1
+email: damian@gmail.com 
+password: 12345678
+
+USER 2
+email: logan@gmail.com 
+password: 12345678
